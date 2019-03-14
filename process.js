@@ -303,7 +303,10 @@ const mapFilesToNodes = (files, collections, entities) => {
     info(`Mapping files for ${c.collectionName}...`);
     newEntities[c.collectionName] = newEntities[c.collectionName].map(e => {
       const targetFileId = e[c.fieldName];
-      const fileId = files.find(f => f.directus.directusId === targetFileId).directus.id;
+      const file = files.find(f => f.directus.directusId === targetFileId) || {
+        directus: {}
+      };
+      const fileId = file.directus.id;
       return { ...e,
         [`${c.fieldName}___NODE`]: fileId
       };
