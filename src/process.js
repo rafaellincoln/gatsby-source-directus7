@@ -135,6 +135,12 @@ export const mapRelations = (entities, relations, files) => {
                 fm = co;
             }
 
+            if (!mappedEntities[co]) mappedEntities[co] = [];
+
+            if (!mappedEntities[cm]) {
+                mappedEntities[cm] = [];
+            }
+
             // Replace each "One" entity with one that contains relations
             // to "Many" entities
             mappedEntities[co] = mappedEntities[co].map(entity => ({
@@ -216,7 +222,7 @@ export const mapRelations = (entities, relations, files) => {
         }
         // Add relations to both directions
         junctions.forEach(j =>
-            mappedEntities[j.collection_many].forEach(relation => {
+            mappedEntities[j.collection_many] && mappedEntities[j.collection_many].forEach(relation => {
                 // Finds the correct entity and adds the id of related
                 // item to the relation list
                 const targetCol = j.collection_one;
