@@ -17,7 +17,8 @@ exports.sourceNodes = async ({
   url,
   project,
   email,
-  password
+  password,
+  allItems
 }) => {
   const {
     createNode
@@ -26,7 +27,7 @@ exports.sourceNodes = async ({
   let fetcher;
 
   try {
-    fetcher = new _fetch.default(url, project, email, password);
+    fetcher = new _fetch.default(url, project, email, password, allItems);
     (0, _process.success)('Connected to Directus!');
   } catch (e) {
     (0, _process.info)('Failed to initialize Directus connection. Please check your gatsby-config.js');

@@ -14,14 +14,14 @@ import {
 
 exports.sourceNodes = async (
     { actions, store, cache, createNodeId },
-    { url, project, email, password },
+    { url, project, email, password, allItems },
 ) => {
     const { createNode } = actions;
 
     info('Directus Data Fetcher initializing...');
     let fetcher;
     try {
-        fetcher = new Fetcher(url, project, email, password);
+        fetcher = new Fetcher(url, project, email, password, allItems);
         success('Connected to Directus!');
     } catch (e) {
         info('Failed to initialize Directus connection. Please check your gatsby-config.js');

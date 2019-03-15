@@ -16,9 +16,10 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * via their JS SDK
  */
 class DirectusFetcher {
-  constructor(url, project, email, password) {
+  constructor(url, project, email, password, allItems) {
     this.email = email;
     this.password = password;
+    this.allItems = allItems;
 
     try {
       this.client = new _sdkJs.default({
@@ -118,7 +119,12 @@ class DirectusFetcher {
       const itemsData = await this.client.getItems(collectionName, {
         limit: '-1'
       });
-      return itemsData.data;
+
+      if (this.allItems) {
+        return itemsData.data;
+      }
+
+      return itemsData.data.filter(item => !item.status || item.status === 'published');
     } catch (e) {
       (0, _process.error)(`Error while fetching collection ${collectionName}: `, e);
       return [];

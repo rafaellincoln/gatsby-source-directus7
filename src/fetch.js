@@ -6,9 +6,10 @@ import { error } from './process';
  * via their JS SDK
  */
 export default class DirectusFetcher {
-    constructor(url, project, email, password) {
+    constructor(url, project, email, password, allItems) {
         this.email = email;
         this.password = password;
+        this.allItems = allItems;
         try {
             this.client = new DirectusSDK({
                 url,
@@ -98,8 +99,15 @@ export default class DirectusFetcher {
      */
     async getItemsForCollection(collectionName) {
         try {
-            const itemsData = await this.client.getItems(collectionName, { limit: '-1' });
-            return itemsData.data;
+            const itemsData = await this.client.getItems(collectionName, {
+                limit: '-1',
+            });
+
+            if (this.allItems) {
+                return itemsData.data;
+            }
+
+            return itemsData.data.filter(item => !item.status || item.status === 'published');
         } catch (e) {
             error(`Error while fetching collection ${collectionName}: `, e);
             return [];
