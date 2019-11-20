@@ -75,19 +75,9 @@ export const prepareFileNodes = files => {
 export const createNodesFromFiles = (files, createNode, createRemoteFileNode) =>
     Promise.all(
         files.map(async f => {
-            let localFileNode;
-            try {
-                localFileNode = await createRemoteFileNode(f);
-            } catch (e) {
-                error(`Error while downloading files: ${e}`);
-            }
-            if (localFileNode) {
-                f.localFile___NODE = localFileNode.id;
-                await createNode(f);
-            }
+            await createNode(f);
             return {
                 directus: f,
-                gatsby: localFileNode,
             };
         }),
     );
