@@ -116,9 +116,18 @@ class DirectusFetcher {
 
   async getItemsForCollection(collectionName) {
     try {
-      const itemsData = await this.client.getItems(collectionName, {
-        limit: '-1'
-      });
+      const itemsData = [];
+
+      try {
+        itemsData = await this.client.getItems(collectionName, {
+          limit: '-1',
+          sort: 'sort'
+        });
+      } catch (e) {
+        itemsData = await this.client.getItems(collectionName, {
+          limit: '-1'
+        });
+      }
 
       if (this.allItems) {
         return itemsData.data;
