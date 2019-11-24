@@ -72,9 +72,15 @@ export const prepareFileNodes = files => {
  * createRemoteFileNode on them. Returns an object with both of them,
  * so that they can be linked into Directus's collections.
  */
-export const createNodesFromFiles = (files, createNode, createRemoteFileNode) =>
+export const createNodesFromFiles = (files, createNode, createRemoteFileNode, downloadLocalFiles = true) =>
     Promise.all(
         files.map(async f => {
+            if (!downloadLocalFiles) {
+                await createNode(f);
+                return {
+                  directus: f,
+                };
+            }
             let localFileNode;
             try {
                 localFileNode = await createRemoteFileNode(f);
@@ -101,7 +107,7 @@ const containsNullValue = obj => Object.keys(obj).some(key => obj[key] === null)
  * gathering up all Many-To-Many relations. Afterwards we can iterate
  * over each Many-To-Many relation and build the correct GraphQL nodes.
  */
-export const mapRelations = (entities, relations, files) => {
+export const mapRelations = (entities, relations, files, showWarningMessages = true, showInfoMessages = true) => {
     const mappedEntities = entities;
     const junctionRelations = {};
     relations.forEach(relation => {
@@ -114,24 +120,29 @@ export const mapRelations = (entities, relations, files) => {
 
             // Try to filter out broken relations left over by Directus
             if (!co || !cm) return;
-
-            info(`Found One-To-Many relation: ${co} -> ${cm}`);
+            if (showInfoMessages) {
+                info(`Found One-To-Many relation: ${co} -> ${cm}`);
+            }
 
             // If the relation hasn't been defined in both collections, fall back
             // to using the name of the related collection instead of the relation
             // field
             if (!fo) {
-                warn(
-                    `Missing One-To-Many-relation in ${co}. The relation ` +
-                        `will be called ${cm} in GraphQL as a best guess.`,
-                );
+                if (showWarningMessages) {
+                    warn(
+                      `Missing One-To-Many-relation in ${co}. The relation ` +
+                            `will be called ${cm} in GraphQL as a best guess.`,
+                    );
+                }
                 fo = cm;
             }
             if (!fm) {
-                warn(
-                    `Missing Many-To-One-relation in ${cm}. The relation ` +
-                        `will be called ${co} in GraphQL as a best guess.`,
-                );
+                if (showWarningMessages) {
+                    warn(
+                        `Missing Many-To-One-relation in ${cm}. The relation ` +
+                            `will be called ${co} in GraphQL as a best guess.`,
+                    );
+                }
                 fm = co;
             }
 
@@ -154,10 +165,12 @@ export const mapRelations = (entities, relations, files) => {
             mappedEntities[cm] = mappedEntities[cm].map(entity => {
                 const targetEntity = mappedEntities[co].find(e => e.directusId === entity[fm]);
                 if (!targetEntity) {
-                    warn(
-                        `Could not find an Many-To-One match in ${co} for item in ${cm} ` +
-                            `with id ${entity.directusId}. The field value will be left null.`,
-                    );
+                    if (showWarningMessages) {
+                        warn(
+                            `Could not find an Many-To-One match in ${co} for item in ${cm} ` +
+                                `with id ${entity.directusId}. The field value will be left null.`,
+                        );
+                    }
                     return entity;
                 }
 
@@ -204,21 +217,27 @@ export const mapRelations = (entities, relations, files) => {
                         'and maybe try to delete and remake the relation.',
                 );
             } else if (junctions.length > 2) {
-                warn(
-                    'There seems to be some broken data in the relation for ' +
-                        `${junctions[0].collection_many}. ` +
-                        'It might be left over from an earlier misconfiguration, ' +
-                        'we will attempt to use the latest configured settings.',
-                );
+                if (showWarningMessages) {
+                    warn(
+                        'There seems to be some broken data in the relation for ' +
+                            `${junctions[0].collection_many}. ` +
+                            'It might be left over from an earlier misconfiguration, ' +
+                            'we will attempt to use the latest configured settings.',
+                    );
+                }
                 junctions = junctions.slice(-2);
             }
         }
         const firstCol = junctions[0].collection_one;
         const secondCol = junctions[1].collection_one;
-        info(`Found Many-To-Many relation: ${firstCol} <-> ${secondCol}`);
+        if (showInfoMessages) {
+            info(`Found Many-To-Many relation: ${firstCol} <-> ${secondCol}`);
+        }
         if (junctions.some(containsNullValue)) {
             junctions = junctions.filter(j => !containsNullValue(j));
-            warn(`Only ${junctions[0].collection_one} contains the relational field though.`);
+            if (showWarningMessages) {
+                warn(`Only ${junctions[0].collection_one} contains the relational field though.`);
+            }
         }
         // Add relations to both directions
         junctions.forEach(j =>
@@ -236,12 +255,14 @@ export const mapRelations = (entities, relations, files) => {
                     );
 
                     if (!targetFile) {
-                        warn(
-                            `Could not find a match for file with id ` +
-                                `${relation[j.junction_field]} for field ${j.field_one} ` +
-                                `in ${targetCol}. ` +
-                                'The field value will be left null.',
-                        );
+                        if (showWarningMessages) {
+                            warn(
+                                `Could not find a match for file with id ` +
+                                    `${relation[j.junction_field]} for field ${j.field_one} ` +
+                                    `in ${targetCol}. ` +
+                                    'The field value will be left null.',
+                            );
+                        }
                         return;
                     }
                     targetVal = targetFile.directus.id;
@@ -250,12 +271,14 @@ export const mapRelations = (entities, relations, files) => {
                         e => e.directusId === relation[j.junction_field],
                     );
                     if (!targetEntity) {
-                        warn(
-                            `Could not find an Many-To-Many match for item with id ` +
-                                `${relation[j.junction_field]} for field ${j.field_one} ` +
-                                `in ${targetCol}. ` +
-                                `The field value will be left null.`,
-                        );
+                        if (showWarningMessages) {
+                            warn(
+                                `Could not find an Many-To-Many match for item with id ` +
+                                    `${relation[j.junction_field]} for field ${j.field_one} ` +
+                                    `in ${targetCol}. ` +
+                                    `The field value will be left null.`,
+                            );
+                        }
                         return;
                     }
                     targetVal = targetEntity.id;
@@ -276,7 +299,9 @@ export const mapRelations = (entities, relations, files) => {
     });
 
     // Remove junction collections as they don't contain relevant data to user anymore
-    info('Cleaning junction collections...');
+    if (showInfoMessages) {
+      info('Cleaning junction collections...');
+    }
     Object.keys(junctionRelations).forEach(junction => {
         delete mappedEntities[junction];
     });
@@ -287,7 +312,7 @@ export const mapRelations = (entities, relations, files) => {
  * Iterates through files served by Directus and maps them to all
  * the Collections's Items which are supposed to have an attachment.
  */
-export const mapFilesToNodes = (files, collections, entities) => {
+export const mapFilesToNodes = (files, collections, entities, showInfoMessages = true) => {
     const newEntities = entities;
     // Figure out which Collections have fields that need to be
     // mapped to files
@@ -305,7 +330,9 @@ export const mapFilesToNodes = (files, collections, entities) => {
 
     // Map the right field in the right collection to a file node
     collectionsWithFiles.forEach(c => {
-        info(`Mapping files for ${c.collectionName}...`);
+        if (showInfoMessages) {
+            info(`Mapping files for ${c.collectionName}...`);
+        }
         newEntities[c.collectionName] = newEntities[c.collectionName].map(e => {
             const targetFileId = e[c.fieldName];
             const file = files.find(f => f.directus.directusId === targetFileId) || { directus: {} };

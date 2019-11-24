@@ -99,17 +99,10 @@ export default class DirectusFetcher {
      */
     async getItemsForCollection(collectionName) {
         try {
-            const itemsData = [];
-            try {
-                itemsData = await this.client.getItems(collectionName, {
-                    limit: '-1',
-                    sort: 'sort'
-                });
-            } catch (e) {
-                itemsData = await this.client.getItems(collectionName, {
-                    limit: '-1',
-                });
-            }
+            const itemsData = await this.client.getItems(collectionName, {
+                limit: '-1',
+                sort: 'sort',
+            });
 
             if (this.allItems) {
                 return itemsData.data;
@@ -117,8 +110,19 @@ export default class DirectusFetcher {
 
             return itemsData.data.filter(item => !item.status || item.status === 'published');
         } catch (e) {
-            error(`Error while fetching collection ${collectionName}: `, e);
-            return [];
+            try {
+                const itemsData = await this.client.getItems(collectionName, {
+                    limit: '-1',
+                });
+                if (this.allItems) {
+                    return itemsData.data;
+                }
+                return itemsData.data.filter(item => !item.status || item.status === 'published');
+            } catch (err) {
+                error(`Error while fetching collection ${collectionName}: `, err);
+                return [];
+            }
+
         }
     }
 

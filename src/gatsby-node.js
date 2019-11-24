@@ -14,7 +14,7 @@ import {
 
 exports.sourceNodes = async (
     { actions, store, cache, createNodeId },
-    { url, project, email, password, allItems },
+    { url, project, email, password, allItems, downloadLocalFiles, showWarningMessages, showInfoMessages },
 ) => {
     const { createNode } = actions;
 
@@ -40,14 +40,18 @@ exports.sourceNodes = async (
 
     info('Downloading Directus files to Gatsby build cache...');
     const nodeFilesData = prepareFileNodes(allFilesData);
-    const nodeFiles = await createNodesFromFiles(nodeFilesData, createNode, async f =>
+    const nodeFiles = await createNodesFromFiles(
+        nodeFilesData,
+        createNode,
+        async f =>
         createRemoteFileNode({
-            url: f.data.full_url,
-            store,
-            cache,
-            createNode,
-            createNodeId,
-        }),
+                url: f.data.full_url,
+                store,
+                cache,
+                createNode,
+                createNodeId,
+            }),
+        downloadLocalFiles,
     );
     if (nodeFiles.length === allFilesData.length) {
         success(`Downloaded all ${nodeFiles.length.toString().yellow} files from Directus!`);
@@ -70,10 +74,10 @@ exports.sourceNodes = async (
 
     info('Mapping Directus relations to Items...');
     const nodeEntities = prepareNodes(entities);
-    const relationMappedEntities = mapRelations(nodeEntities, relations, nodeFiles);
+    const relationMappedEntities = mapRelations(nodeEntities, relations, nodeFiles, showWarningMessages, showInfoMessages);
 
     info('Mapping Directus files to Items...');
-    const mappedEntities = mapFilesToNodes(nodeFiles, allCollectionsData, relationMappedEntities);
+    const mappedEntities = mapFilesToNodes(nodeFiles, allCollectionsData, relationMappedEntities, showInfoMessages);
 
     info('Generating GraphQL nodes...');
     await createNodesFromEntities(mappedEntities, createNode);
