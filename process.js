@@ -107,7 +107,14 @@ const prepareFileNodes = files => {
 
 exports.prepareFileNodes = prepareFileNodes;
 
-const createNodesFromFiles = (files, createNode, createRemoteFileNode) => Promise.all(files.map(async f => {
+const createNodesFromFiles = (files, createNode, createRemoteFileNode, downloadLocalFiles = true) => Promise.all(files.map(async f => {
+  if (!downloadLocalFiles) {
+    await createNode(f);
+    return {
+      directus: f
+    };
+  }
+
   let localFileNode;
 
   try {
@@ -139,7 +146,7 @@ const containsNullValue = obj => Object.keys(obj).some(key => obj[key] === null)
  */
 
 
-const mapRelations = (entities, relations, files) => {
+const mapRelations = (entities, relations, files, showWarningMessages = true, showInfoMessages = true) => {
   const mappedEntities = entities;
   const junctionRelations = {};
   relations.forEach(relation => {
@@ -151,17 +158,27 @@ const mapRelations = (entities, relations, files) => {
       let fm = relation.field_many; // Try to filter out broken relations left over by Directus
 
       if (!co || !cm) return;
-      info(`Found One-To-Many relation: ${co} -> ${cm}`); // If the relation hasn't been defined in both collections, fall back
+
+      if (showInfoMessages) {
+        info(`Found One-To-Many relation: ${co} -> ${cm}`);
+      } // If the relation hasn't been defined in both collections, fall back
       // to using the name of the related collection instead of the relation
       // field
 
+
       if (!fo) {
-        warn(`Missing One-To-Many-relation in ${co}. The relation ` + `will be called ${cm} in GraphQL as a best guess.`);
+        if (showWarningMessages) {
+          warn(`Missing One-To-Many-relation in ${co}. The relation ` + `will be called ${cm} in GraphQL as a best guess.`);
+        }
+
         fo = cm;
       }
 
       if (!fm) {
-        warn(`Missing Many-To-One-relation in ${cm}. The relation ` + `will be called ${co} in GraphQL as a best guess.`);
+        if (showWarningMessages) {
+          warn(`Missing Many-To-One-relation in ${cm}. The relation ` + `will be called ${co} in GraphQL as a best guess.`);
+        }
+
         fm = co;
       }
 
@@ -181,7 +198,10 @@ const mapRelations = (entities, relations, files) => {
         const targetEntity = mappedEntities[co].find(e => e.directusId === entity[fm]);
 
         if (!targetEntity) {
-          warn(`Could not find an Many-To-One match in ${co} for item in ${cm} ` + `with id ${entity.directusId}. The field value will be left null.`);
+          if (showWarningMessages) {
+            warn(`Could not find an Many-To-One match in ${co} for item in ${cm} ` + `with id ${entity.directusId}. The field value will be left null.`);
+          }
+
           return entity;
         }
 
@@ -221,18 +241,27 @@ const mapRelations = (entities, relations, files) => {
       if (junctions.length < 2) {
         error('Error while building relations for ' + `${junctions[0].collection_many}. ` + 'Please check your Directus Relations collection ' + 'and maybe try to delete and remake the relation.');
       } else if (junctions.length > 2) {
-        warn('There seems to be some broken data in the relation for ' + `${junctions[0].collection_many}. ` + 'It might be left over from an earlier misconfiguration, ' + 'we will attempt to use the latest configured settings.');
+        if (showWarningMessages) {
+          warn('There seems to be some broken data in the relation for ' + `${junctions[0].collection_many}. ` + 'It might be left over from an earlier misconfiguration, ' + 'we will attempt to use the latest configured settings.');
+        }
+
         junctions = junctions.slice(-2);
       }
     }
 
     const firstCol = junctions[0].collection_one;
     const secondCol = junctions[1].collection_one;
-    info(`Found Many-To-Many relation: ${firstCol} <-> ${secondCol}`);
+
+    if (showInfoMessages) {
+      info(`Found Many-To-Many relation: ${firstCol} <-> ${secondCol}`);
+    }
 
     if (junctions.some(containsNullValue)) {
       junctions = junctions.filter(j => !containsNullValue(j));
-      warn(`Only ${junctions[0].collection_one} contains the relational field though.`);
+
+      if (showWarningMessages) {
+        warn(`Only ${junctions[0].collection_one} contains the relational field though.`);
+      }
     } // Add relations to both directions
 
 
@@ -249,7 +278,10 @@ const mapRelations = (entities, relations, files) => {
         const targetFile = files.find(f => f.directus.directusId === relation[j.junction_field]);
 
         if (!targetFile) {
-          warn(`Could not find a match for file with id ` + `${relation[j.junction_field]} for field ${j.field_one} ` + `in ${targetCol}. ` + 'The field value will be left null.');
+          if (showWarningMessages) {
+            warn(`Could not find a match for file with id ` + `${relation[j.junction_field]} for field ${j.field_one} ` + `in ${targetCol}. ` + 'The field value will be left null.');
+          }
+
           return;
         }
 
@@ -258,7 +290,10 @@ const mapRelations = (entities, relations, files) => {
         const targetEntity = mappedEntities[anotherCol].find(e => e.directusId === relation[j.junction_field]);
 
         if (!targetEntity) {
-          warn(`Could not find an Many-To-Many match for item with id ` + `${relation[j.junction_field]} for field ${j.field_one} ` + `in ${targetCol}. ` + `The field value will be left null.`);
+          if (showWarningMessages) {
+            warn(`Could not find an Many-To-Many match for item with id ` + `${relation[j.junction_field]} for field ${j.field_one} ` + `in ${targetCol}. ` + `The field value will be left null.`);
+          }
+
           return;
         }
 
@@ -271,7 +306,10 @@ const mapRelations = (entities, relations, files) => {
     }));
   }); // Remove junction collections as they don't contain relevant data to user anymore
 
-  info('Cleaning junction collections...');
+  if (showInfoMessages) {
+    info('Cleaning junction collections...');
+  }
+
   Object.keys(junctionRelations).forEach(junction => {
     delete mappedEntities[junction];
   });
@@ -285,7 +323,7 @@ const mapRelations = (entities, relations, files) => {
 
 exports.mapRelations = mapRelations;
 
-const mapFilesToNodes = (files, collections, entities) => {
+const mapFilesToNodes = (files, collections, entities, showInfoMessages = true) => {
   const newEntities = entities; // Figure out which Collections have fields that need to be
   // mapped to files
 
@@ -300,7 +338,10 @@ const mapFilesToNodes = (files, collections, entities) => {
   })); // Map the right field in the right collection to a file node
 
   collectionsWithFiles.forEach(c => {
-    info(`Mapping files for ${c.collectionName}...`);
+    if (showInfoMessages) {
+      info(`Mapping files for ${c.collectionName}...`);
+    }
+
     newEntities[c.collectionName] = newEntities[c.collectionName].map(e => {
       const targetFileId = e[c.fieldName];
       const file = files.find(f => f.directus.directusId === targetFileId) || {

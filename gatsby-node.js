@@ -18,7 +18,10 @@ exports.sourceNodes = async ({
   project,
   email,
   password,
-  allItems
+  allItems,
+  downloadLocalFiles,
+  showWarningMessages,
+  showInfoMessages
 }) => {
   const {
     createNode
@@ -52,7 +55,7 @@ exports.sourceNodes = async ({
     cache,
     createNode,
     createNodeId
-  }));
+  }), downloadLocalFiles);
 
   if (nodeFiles.length === allFilesData.length) {
     (0, _process.success)(`Downloaded all ${nodeFiles.length.toString().yellow} files from Directus!`);
@@ -68,9 +71,9 @@ exports.sourceNodes = async ({
   const relations = await fetcher.getAllRelations();
   (0, _process.info)('Mapping Directus relations to Items...');
   const nodeEntities = (0, _process.prepareNodes)(entities);
-  const relationMappedEntities = (0, _process.mapRelations)(nodeEntities, relations, nodeFiles);
+  const relationMappedEntities = (0, _process.mapRelations)(nodeEntities, relations, nodeFiles, showWarningMessages, showInfoMessages);
   (0, _process.info)('Mapping Directus files to Items...');
-  const mappedEntities = (0, _process.mapFilesToNodes)(nodeFiles, allCollectionsData, relationMappedEntities);
+  const mappedEntities = (0, _process.mapFilesToNodes)(nodeFiles, allCollectionsData, relationMappedEntities, showInfoMessages);
   (0, _process.info)('Generating GraphQL nodes...');
   await (0, _process.createNodesFromEntities)(mappedEntities, createNode);
   (0, _process.success)('All done!');
