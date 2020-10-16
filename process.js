@@ -196,13 +196,28 @@ const mapRelations = (entities, relations, files, showWarningMessages = true, sh
 
       mappedEntities[cm] = mappedEntities[cm].map(entity => {
         const targetEntity = mappedEntities[co].find(e => e.directusId === entity[fm]);
-
+    
         if (!targetEntity) {
           if (showWarningMessages) {
             warn(`Could not find an Many-To-One match in ${co} for item in ${cm} ` + `with id ${entity.directusId}. The field value will be left null.`);
           }
 
           return entity;
+        }
+
+        if(cm.includes('_matrix') && cm !== 'ene_matrix') {
+
+          const fieldName = entity.component_collection;
+          const table = mappedEntities[fieldName]
+          let matrixEntity;
+
+          if(table) {
+            matrixEntity =  table.find(e => e.directusId === entity.component_collection_id);
+          }
+
+          if(matrixEntity) {
+            entity[`${fieldName}___NODE`] =   matrixEntity.id 
+          }
         }
 
         const newEntity = { ...entity,
