@@ -298,13 +298,6 @@ export const mapRelations = (entities, relations, files, showWarningMessages = t
         );
     });
 
-    // Remove junction collections as they don't contain relevant data to user anymore
-    if (showInfoMessages) {
-      info('Cleaning junction collections...');
-    }
-    Object.keys(junctionRelations).forEach(junction => {
-        delete mappedEntities[junction];
-    });
     return mappedEntities;
 };
 
